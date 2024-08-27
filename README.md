@@ -16,7 +16,7 @@ This plugin provides a file upload functionality that can continue to run even w
 To install the plugin in a capacitor project:
 
 ```
-npm i github:shiv19/cordova-plugin-background-upload-s3
+npm i github:shiv19/cordova-plugin-background-upload-put
 ```
 
 ```
@@ -102,12 +102,12 @@ Adds an upload. In case the plugin was not able to enqueue the upload, an error 
 ```javascript
 var payload = {
     id: "c3a4b4c7-4f1e-4c69-a951-773602e269fb",
-    // eg: Android: 'file:///storage/emulated/0/Android/data/com.simpro.mobile/files/somefile.jpeg',
+    // eg: Android: 'file:///storage/emulated/0/Android/data/com.your.application/files/somefile.jpeg',
     // also supports content:// paths.
     // iOS: /var/mobile/Containers/Data/Application/396C27F0-1E40-4003-A605-DDFFFC716747/Library/NoCloud/photo-5.jpg
     filePath: "file:///storage/emulated/0/Android/data/com.simpro.mobile/files/somefile.jpeg",
     fileKey: "file",
-    serverUrl: "<S3 Presigned URL to make PUT request to>",
+    serverUrl: "<Server URL to make PUT request to>",
     notificationTitle: "Uploading images",
 };
 uploader.startUpload(payload);
