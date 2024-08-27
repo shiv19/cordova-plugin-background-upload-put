@@ -13,26 +13,78 @@ This plugin provides a file upload functionality that can continue to run even w
 
 **Installation**
 
-To install the plugin:
+To install the plugin in a capacitor project:
 
 ```
-cordova plugin add @spoonconsulting/cordova-plugin-background-upload --save
+npm i git+https://github.com/shiv19/cordova-plugin-background-upload-s3.git
 ```
 
-To uninstall this plugin:
-
 ```
-cordova plugin rm @spoonconsulting/cordova-plugin-background-upload
+npm i @awesome-cordova-plugins/core
+npm i @awesome-cordova-plugins/background-upload
 ```
 
 **Sample usage**
 
-The plugin needs to be initialised before any upload. Ideally this should be called on application start. The uploader will provide global events which can be used to check the progress of the uploads. By default, the maximum number of parallel uploads allowed is set to 1. You can override it by changing the configuration on init.
+The plugin needs to be initialised before any upload. Ideally this should be called on application start. The uploader will provide global events which can be used to check the progress of the uploads. By default, the maximum number of parallel uploads allowed is set to 1. You can override it by changing the configuration on init. Please also read the demo folder for more info.
 
-```javascript
-declare var FileTransferManager: any;
-var config = {};
-var uploader = FileTransferManager.init(config, callback);
+```ts
+import { FileTransferManager, FTMPayloadOptions, UploadEvent } from '@awesome-cordova-plugins/background-upload';
+
+
+// in your component
+private platform = inject(Platform);
+private zone = inject(NgZone);
+
+// in your constructor
+constructor() {
+  this.platform.ready().then(() => {
+    if (!this.platform.is('capacitor')) {
+      return;
+    }
+
+    if (this.uploadManager) {
+      return;
+    }
+
+    if (this.uploadManager) {
+      return;
+    }
+
+    this.uploadManager = new FileTransferManager({
+      config: {
+        parallelUploadsLimit: 3,
+      },
+      callBack: (event: UploadEvent) => {
+        if (event.state == 'UPLOADED') {
+          console.log('upload: ' + event.id + ' has been completed successfully');
+          console.log(event.statusCode, event.serverResponse);
+        } else if (event.state == 'FAILED') {
+          if (event.id) {
+            console.log('upload: ' + event.id + ' has failed');
+          } else {
+            console.error('uploader caught an error: ' + event.error);
+          }
+        } else if (event.state == 'UPLOADING') {
+          console.log('uploading: ' + event.id + ' progress: ' + event.progress + '%');
+        }
+
+        this.zone.run(() => {
+          if (event.eventId) {
+            this.uploadManager
+              .acknowledgeEvent(event.eventId)
+              .then(success => {
+                console.log('acknowledgeEvent: ' + success);
+              })
+              .catch(error => {
+                console.log('acknowledgeEvent error: ' + error);
+              });
+          }
+        });
+      },
+    });
+  });
+}
 ```
 
 **Methods**
