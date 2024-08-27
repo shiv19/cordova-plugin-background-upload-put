@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.net.ProtocolException;
 import java.net.SocketException;
@@ -33,6 +34,11 @@ import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
+import android.content.ContentResolver;
+import android.net.Uri;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
 
 public final class UploadTask extends Worker {
 
@@ -329,58 +335,45 @@ public final class UploadTask extends Worker {
         // Build file reader
         String extension = MimeTypeMap.getFileExtensionFromUrl(filepath);
         MediaType mediaType;
-        if (extension.equals("json") || extension.equals("db")) {
+        if (extension.equals("json")) {
             // Does not support devices less than Android 10 (Stop Execution)
             // https://stackoverflow.com/questions/44667125/getmimetypefromextension-returns-null-when-i-pass-json-as-extension
             mediaType = MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) + "; charset=utf-8");
         } else {
             mediaType = MediaType.parse(MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
         }
-        File file = new File(filepath);
-        ProgressRequestBody fileRequestBody = new ProgressRequestBody(mediaType, file.length(), new FileInputStream(file), this::handleProgress);
 
-        // Build body
-        final MultipartBody.Builder bodyBuilder = new MultipartBody.Builder();
+        InputStream inputStream;
+        long fileLength;
 
-        // With the parameters
-        final int parametersCount = getInputData().getInt(KEY_INPUT_PARAMETERS_COUNT, 0);
-        if (parametersCount > 0) {
-            final String[] parameterNames = getInputData().getStringArray(KEY_INPUT_PARAMETERS_NAMES);
-            assert parameterNames != null;
-
-            for (int i = 0; i < parametersCount; i++) {
-                final String key = parameterNames[i];
-                final Object value = getInputData().getKeyValueMap().get(KEY_INPUT_PARAMETER_VALUE_PREFIX + i);
-
-                bodyBuilder.addFormDataPart(key, value.toString());
-            }
+        if (filepath.startsWith("content://")) {
+            // Handle content URI
+            ContentResolver contentResolver = getApplicationContext().getContentResolver();
+            Uri contentUri = Uri.parse(filepath);
+            inputStream = contentResolver.openInputStream(contentUri);
+            fileLength = getFileSize(contentUri, contentResolver);
+        } else {
+            // Handle file path
+            File file = new File(filepath);
+            inputStream = new FileInputStream(file);
+            fileLength = file.length();
         }
 
-        bodyBuilder.addFormDataPart(fileKey, filepath, fileRequestBody);
-        bodyBuilder.setType(MultipartBody.FORM);
+        ProgressRequestBody fileRequestBody = new ProgressRequestBody(mediaType, fileLength, inputStream, this::handleProgress);
 
-        // Start build request
-        String method = getInputData().getString(KEY_INPUT_HTTP_METHOD);
-        if (method == null) {
-            method = "POST";
-        }
-        Request.Builder requestBuilder = new Request.Builder()
+        return new Request.Builder()
                 .url(url)
-                .method(method.toUpperCase(), bodyBuilder.build());
+                .put(fileRequestBody)
+                .build();
+    }
 
-        // Write headers
-        final int headersCount = getInputData().getInt(KEY_INPUT_HEADERS_COUNT, 0);
-        final String[] headerNames = getInputData().getStringArray(KEY_INPUT_HEADERS_NAMES);
-        assert headerNames != null;
-        for (int i = 0; i < headersCount; i++) {
-            final String key = headerNames[i];
-            final Object value = getInputData().getKeyValueMap().get(KEY_INPUT_HEADER_VALUE_PREFIX + i);
-
-            requestBuilder.addHeader(key, value.toString());
-        }
-
-        // Ok
-        return requestBuilder.build();
+    private long getFileSize(Uri uri, ContentResolver contentResolver) {
+        Cursor cursor = contentResolver.query(uri, null, null, null, null);
+        int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+        cursor.moveToFirst();
+        long size = cursor.getLong(sizeIndex);
+        cursor.close();
+        return size;
     }
 
     private void handleNotification() {
