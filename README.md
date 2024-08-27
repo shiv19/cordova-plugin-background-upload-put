@@ -16,7 +16,7 @@ This plugin provides a file upload functionality that can continue to run even w
 To install the plugin in a capacitor project:
 
 ```
-npm i git+https://github.com/shiv19/cordova-plugin-background-upload-s3.git
+npm i github:shiv19/cordova-plugin-background-upload-s3
 ```
 
 ```
